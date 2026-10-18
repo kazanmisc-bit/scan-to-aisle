@@ -1,0 +1,2042 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Scan-to-Aisle | S25 Ultra</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      overscroll-behavior-y: none;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.4);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.5);
+      border-radius: 9999px;
+    }
+    /* Smooth Checkbox Animation */
+    .item-checkbox:checked + div {
+      background-color: #10b981;
+      border-color: #10b981;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-blue-500 selection:text-white">
+
+  <!-- TOP HEADER -->
+  <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-3">
+    <div class="max-w-xl mx-auto flex items-center justify-between gap-2">
+      <!-- App Title & Logo -->
+      <div class="flex items-center gap-2.5">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <i data-lucide="scan-line" class="w-6 h-6 text-white"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-extrabold tracking-tight text-white leading-none">Scan-to-Aisle</h1>
+          <p class="text-xs text-slate-400 font-medium mt-0.5">Recipe Scanner & Store Sorter</p>
+        </div>
+      </div>
+
+      <!-- Active Store Quick Switcher & Settings -->
+      <div class="flex items-center gap-2">
+        <div class="relative">
+          <select id="headerStoreSelect" onchange="handleActiveStoreChange(this.value)" aria-label="Active Store"
+            class="appearance-none bg-slate-800 hover:bg-slate-750 text-white font-semibold text-sm rounded-xl pl-3 pr-8 py-2 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+          </select>
+          <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        </div>
+
+        <button onclick="openRecipesDrawer()" title="Saved Recipe Instructions"
+          class="relative p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+          <i data-lucide="book-open" class="w-5 h-5"></i>
+          <span id="recipeCountBadge" class="hidden absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-slate-950 text-[11px] font-extrabold flex items-center justify-center">0</span>
+        </button>
+
+        <button onclick="openApiKeyModal()" title="API Key & App Settings"
+          class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition relative">
+          <i data-lucide="key-round" class="w-5 h-5"></i>
+          <span id="apiKeyStatusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 absolute top-1.5 right-1.5"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER (Padded at bottom so fixed nav never overlaps) -->
+  <main class="flex-1 max-w-xl w-full mx-auto px-4 pt-4 pb-32">
+
+    <!-- ========================================== -->
+    <!-- TAB 1: SCAN RECIPE                         -->
+    <!-- ========================================== -->
+    <section id="tab-scan" class="space-y-5">
+      <!-- Active Store Banner -->
+      <div class="bg-gradient-to-r from-blue-950/80 via-slate-900 to-slate-900 border border-blue-500/30 rounded-2xl p-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 rounded-xl bg-blue-500/20 text-blue-400">
+            <i data-lucide="store" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider font-bold text-blue-400">Sorting Aisles For</div>
+            <div id="scanBannerStoreName" class="text-lg font-extrabold text-white">Meijer</div>
+          </div>
+        </div>
+        <button onclick="switchTab('stores')" class="text-xs font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-3 py-2 rounded-xl border border-blue-500/20 transition flex items-center gap-1">
+          <span>Edit Aisles</span>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+
+      <!-- Camera & Gallery Scan Card -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <i data-lucide="camera" class="w-5 h-5 text-blue-400"></i>
+              <span>1. Scan Recipe Photo</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Snap a cookbook page, magazine, or tablet/PC screen</p>
+          </div>
+          <span class="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            Gemini Vision
+          </span>
+        </div>
+
+        <!-- Hidden File Inputs -->
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageSelected(event)" />
+        <input type="file" id="galleryInput" accept="image/*" class="hidden" onchange="handleImageSelected(event)" />
+
+        <!-- Dual Big Action Buttons -->
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="document.getElementById('cameraInput').click()"
+            class="flex flex-col items-center justify-center gap-2.5 p-5 rounded-2xl bg-gradient-to-b from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 active:scale-[0.98] text-white font-bold shadow-lg shadow-blue-600/25 border border-blue-400/30 transition">
+            <i data-lucide="camera" class="w-8 h-8"></i>
+            <span class="text-sm">Snap Photo</span>
+            <span class="text-[11px] font-normal text-blue-100 opacity-90">S25 Ultra Camera</span>
+          </button>
+
+          <button onclick="document.getElementById('galleryInput').click()"
+            class="flex flex-col items-center justify-center gap-2.5 p-5 rounded-2xl bg-slate-800 hover:bg-slate-750 active:scale-[0.98] text-slate-100 font-bold border border-slate-700 transition">
+            <i data-lucide="image" class="w-8 h-8 text-indigo-400"></i>
+            <span class="text-sm">From Gallery</span>
+            <span class="text-[11px] font-normal text-slate-400">Screenshots / Photos</span>
+          </button>
+        </div>
+
+        <!-- Selected Image Preview Box -->
+        <div id="imagePreviewContainer" class="hidden space-y-3 pt-2 border-t border-slate-800">
+          <div class="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 max-h-64 flex items-center justify-center">
+            <img id="imagePreviewEl" src="" alt="Recipe preview" class="max-h-64 w-auto object-contain" />
+            <button onclick="clearSelectedImage()" class="absolute top-2.5 right-2.5 p-2 rounded-full bg-slate-900/90 text-slate-200 hover:text-white border border-slate-700 shadow-lg">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <button id="scanImageBtn" onclick="runGeminiRecipeExtraction('image')"
+            class="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-bold text-sm shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 transition">
+            <i data-lucide="sparkles" class="w-5 h-5"></i>
+            <span>Extract Recipe & Sort by Aisles</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Backup Option: Paste Recipe Text or Load Sample -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <button onclick="toggleTextPasteDrawer()" class="w-full p-4 flex items-center justify-between text-left hover:bg-slate-800/50 transition">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="clipboard-paste" class="w-5 h-5 text-amber-400"></i>
+            <div>
+              <span class="text-sm font-bold text-white block">2. Or Paste Recipe Text / Try Sample</span>
+              <span class="text-xs text-slate-400">Great for web copy-paste or offline parsing</span>
+            </div>
+          </div>
+          <i id="pasteChevron" data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform"></i>
+        </button>
+
+        <div id="textPasteBody" class="hidden p-4 pt-0 border-t border-slate-800/80 space-y-3">
+          <div class="flex items-center justify-between pt-2">
+            <span class="text-xs text-slate-400">Paste raw recipe text below:</span>
+            <button onclick="fillSampleRecipeText()" class="text-xs font-semibold text-blue-400 hover:text-blue-300 underline">
+              Load Mediterranean Salmon Sample
+            </button>
+          </div>
+          <textarea id="rawRecipeTextarea" rows="5"
+            placeholder="Paste ingredients and cooking instructions here..."
+            class="w-full rounded-xl bg-slate-950 border border-slate-700 p-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button onclick="runGeminiRecipeExtraction('text')"
+              class="py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm flex items-center justify-center gap-2 transition">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+              <span>AI Extract & Sort</span>
+            </button>
+            <button onclick="runQuickOfflineParse()"
+              class="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm border border-slate-700 flex items-center justify-center gap-2 transition">
+              <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i>
+              <span>Offline Line-by-Line Parse</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading Indicator State -->
+      <div id="scanLoadingBox" class="hidden bg-slate-900 border border-blue-500/40 rounded-2xl p-6 text-center space-y-3">
+        <div class="w-12 h-12 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center mx-auto animate-pulse">
+          <i data-lucide="loader-2" class="w-7 h-7 animate-spin"></i>
+        </div>
+        <h3 class="text-base font-bold text-white" id="scanLoadingTitle">Reading Recipe with Gemini Flash...</h3>
+        <p class="text-xs text-slate-400 max-w-sm mx-auto">
+          Separating multi-column ingredients, normalizing item names, and matching them to your <span id="loadingStoreSpan" class="text-blue-400 font-semibold">Meijer</span> aisles.
+        </p>
+      </div>
+
+      <!-- EXTRACTED RECIPE REVIEW CARD -->
+      <div id="extractedReviewCard" class="hidden bg-slate-900 border-2 border-emerald-500/40 rounded-2xl overflow-hidden shadow-2xl space-y-4 p-4">
+        <div class="flex items-start justify-between gap-3 border-b border-slate-800 pb-3">
+          <div>
+            <span class="text-[11px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
+              Scanned & Matched
+            </span>
+            <h3 id="extractedTitle" class="text-xl font-extrabold text-white mt-1">Recipe Title</h3>
+            <p id="extractedServings" class="text-xs text-slate-400 mt-0.5"></p>
+          </div>
+          <button onclick="closeExtractedReview()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- Legend for Badges -->
+        <div class="flex flex-wrap items-center gap-2 text-xs bg-slate-950/80 p-2.5 rounded-xl border border-slate-800">
+          <span class="text-slate-400 font-medium">Aisle Match Key:</span>
+          <span class="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">Saved Rule</span>
+          <span class="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30 font-semibold">AI Match</span>
+          <span class="text-slate-400 text-[11px] ml-auto">Change any aisle to teach this store!</span>
+        </div>
+
+        <!-- Extracted Ingredients List -->
+        <div class="space-y-2.5" id="extractedIngredientsList"></div>
+
+        <!-- Collapsible Preparation Steps Preview -->
+        <div class="border-t border-slate-800 pt-3">
+          <button onclick="toggleExtractedSteps()" class="w-full flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-white py-1.5">
+            <span class="flex items-center gap-1.5">
+              <i data-lucide="list-ordered" class="w-4 h-4 text-amber-400"></i>
+              <span>Preparation Instructions (<span id="extractedStepsCount">0</span> steps)</span>
+            </span>
+            <i id="extractedStepsChevron" data-lucide="chevron-down" class="w-4 h-4"></i>
+          </button>
+          <ol id="extractedInstructionsList" class="hidden mt-2 space-y-2 text-xs text-slate-300 list-decimal list-inside bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+          </ol>
+        </div>
+
+        <!-- Send to Shopping List Primary CTA -->
+        <div class="pt-2 flex flex-col sm:flex-row gap-2.5">
+          <button onclick="confirmAddExtractedToShoppingList()"
+            class="flex-1 py-4 px-5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-base shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 transition">
+            <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+            <span>Send Selected to Shopping List</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: SHOPPING LIST (SORTED BY AISLE)     -->
+    <!-- ========================================== -->
+    <section id="tab-list" class="hidden space-y-4">
+      <!-- Top Store Status & Progress Bar -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <div>
+            <span class="text-[11px] uppercase tracking-wider font-bold text-emerald-400 block">Shopping At</span>
+            <h2 id="listStoreHeaderTitle" class="text-xl font-extrabold text-white">Meijer</h2>
+          </div>
+          <div class="text-right">
+            <span id="listProgressText" class="text-sm font-extrabold text-white">0 / 0</span>
+            <span class="text-xs text-slate-400 block">Items Checked</span>
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+          <div id="listProgressBar" class="h-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all duration-300" style="width: 0%"></div>
+        </div>
+
+        <!-- Quick Add Manual Item Row -->
+        <div class="pt-2 border-t border-slate-800">
+          <form onsubmit="handleQuickAddItem(event)" class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <input type="text" id="quickAddName" required placeholder="Add item (e.g., Paper towels, Milk)..."
+                class="flex-1 rounded-xl bg-slate-950 border border-slate-700 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input type="text" id="quickAddQty" placeholder="Qty"
+                class="w-20 rounded-xl bg-slate-950 border border-slate-700 px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div class="flex gap-2">
+              <select id="quickAddAisleSelect" aria-label="Select Aisle for Quick Add"
+                class="flex-1 rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              </select>
+              <button type="submit"
+                class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 shrink-0 transition">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>Add to List</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Aisle-Grouped Shopping List Container -->
+      <div id="shoppingListGroupsContainer" class="space-y-4"></div>
+
+      <!-- Bottom Bulk Actions -->
+      <div id="listFooterActions" class="hidden pt-2 flex flex-wrap items-center justify-between gap-2">
+        <button onclick="clearCheckedShoppingItems()"
+          class="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 flex items-center justify-center gap-2 transition">
+          <i data-lucide="check-check" class="w-4 h-4 text-emerald-400"></i>
+          <span>Clear Checked Items</span>
+        </button>
+        <button onclick="clearAllShoppingItems()"
+          class="py-3 px-4 rounded-xl bg-rose-950/60 hover:bg-rose-900/70 text-rose-300 font-semibold text-xs border border-rose-800/50 flex items-center justify-center gap-2 transition">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+          <span>Clear All</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: STORE & AISLE MANAGER               -->
+    <!-- ========================================== -->
+    <section id="tab-stores" class="hidden space-y-5">
+
+      <!-- Store Selector & Add New Store Card -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <i data-lucide="map-pin" class="w-5 h-5 text-blue-400"></i>
+              <span>Manage Store & Aisles</span>
+            </h2>
+            <p class="text-xs text-slate-400">Customize aisle names & walking order per store</p>
+          </div>
+        </div>
+
+        <!-- Store Pills List -->
+        <div id="storeManagerPills" class="flex flex-wrap gap-2"></div>
+
+        <!-- Add New Store Input -->
+        <form onsubmit="handleAddNewStore(event)" class="flex gap-2 pt-2 border-t border-slate-800">
+          <input type="text" id="newStoreNameInput" required placeholder="New store name (e.g., Aldi, Costco, Kroger)..."
+            class="flex-1 rounded-xl bg-slate-950 border border-slate-700 px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <button type="submit"
+            class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shrink-0 transition">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>Add Store</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Custom Aisles Editor for Active Store -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-white">
+              Aisles & Zones for <span id="editingStoreNameSpan" class="text-blue-400">Meijer</span>
+            </h3>
+            <p class="text-xs text-slate-400">Use Up/Down arrows to match the order you walk the store</p>
+          </div>
+          <button onclick="deleteActiveStore()" id="deleteStoreBtn"
+            class="text-xs text-rose-400 hover:text-rose-300 px-2.5 py-1.5 rounded-lg bg-rose-950/40 border border-rose-800/40">
+            Delete Store
+          </button>
+        </div>
+
+        <!-- Add New Aisle Form -->
+        <form onsubmit="handleAddNewAisle(event)" class="flex gap-2">
+          <input type="text" id="newAisleNameInput" required placeholder="Add aisle (e.g., Aisle 12 - Snacks, Walk-In Cooler)..."
+            class="flex-1 rounded-xl bg-slate-950 border border-slate-700 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <button type="submit"
+            class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 shrink-0 transition">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>Add Aisle</span>
+          </button>
+        </form>
+
+        <!-- Sortable/Editable Aisle List -->
+        <div id="storeAislesEditorList" class="space-y-2"></div>
+      </div>
+
+      <!-- Learned Ingredient-to-Aisle Dictionary Manager -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4">
+        <div>
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i data-lucide="brain-circuit" class="w-4 h-4 text-emerald-400"></i>
+            <span>Saved Ingredient Memory (<span id="dictStoreNameSpan" class="text-emerald-400">Meijer</span>)</span>
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">Whenever you assign an ingredient to an aisle, it is remembered here automatically.</p>
+        </div>
+
+        <!-- Add / Update Dictionary Rule Manually -->
+        <form onsubmit="handleManualDictionaryAdd(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <input type="text" id="dictNewIngredient" required placeholder="Ingredient (e.g. tahini)"
+            class="rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white placeholder-slate-500" />
+          <select id="dictNewAisleSelect" aria-label="Select Aisle for Rule"
+            class="rounded-xl bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
+          </select>
+          <button type="submit"
+            class="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs">
+            Save Rule
+          </button>
+        </form>
+
+        <!-- Search Filter -->
+        <div class="relative">
+          <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+          <input type="text" id="dictSearchInput" oninput="renderDictionaryEditor()" placeholder="Search learned ingredients..."
+            class="w-full rounded-xl bg-slate-950 border border-slate-800 pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" />
+        </div>
+
+        <div id="dictionaryRulesContainer" class="max-h-72 overflow-y-auto space-y-1.5 pr-1"></div>
+      </div>
+
+      <!-- Backup / Restore / Export Data Card -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+          <i data-lucide="database-backup" class="w-4 h-4 text-amber-400"></i>
+          <span>Backup & Restore Phone Data</span>
+        </h3>
+        <p class="text-xs text-slate-400">Export your custom stores, aisles, and learned ingredient rules to a file or restore from backup.</p>
+        <div class="grid grid-cols-2 gap-2.5">
+          <button onclick="exportAppData()"
+            class="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 flex items-center justify-center gap-1.5">
+            <i data-lucide="download" class="w-4 h-4 text-blue-400"></i>
+            <span>Export Backup JSON</span>
+          </button>
+          <button onclick="document.getElementById('importJsonInput').click()"
+            class="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 flex items-center justify-center gap-1.5">
+            <i data-lucide="upload" class="w-4 h-4 text-emerald-400"></i>
+            <span>Import Backup JSON</span>
+          </button>
+          <input type="file" id="importJsonInput" accept=".json,application/json" class="hidden" onchange="importAppData(event)" />
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================== -->
+  <!-- MODAL: QUICK AISLE REASSIGN / RENAME       -->
+  <!-- ========================================== -->
+  <div id="reassignModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-2xl w-full max-w-md p-5 space-y-4 max-h-[85vh] flex flex-col shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-blue-400">Move Item & Remember</span>
+          <h3 id="reassignModalItemTitle" class="text-lg font-extrabold text-white">Olive Oil</h3>
+        </div>
+        <button onclick="closeReassignModal()" class="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-400">
+        Tap an aisle below to move this item and <strong class="text-emerald-400">permanently save this rule</strong> for <span id="reassignModalStoreName" class="text-white font-semibold">Meijer</span>:
+      </p>
+
+      <!-- Existing Aisles Scrollable Buttons -->
+      <div id="reassignModalAislesList" class="flex-1 overflow-y-auto space-y-1.5 pr-1"></div>
+
+      <!-- Or Create a Brand New Aisle On the Spot -->
+      <form onsubmit="handleCreateAndAssignNewAisle(event)" class="pt-3 border-t border-slate-800 flex gap-2">
+        <input type="text" id="reassignNewAisleInput" required placeholder="Or type a brand new aisle name..."
+          class="flex-1 rounded-xl bg-slate-950 border border-slate-700 px-3 py-2.5 text-sm text-white placeholder-slate-500" />
+        <button type="submit" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shrink-0">
+          + New Aisle
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: SAVED SCANNED RECIPES (INSTRUCTIONS)-->
+  <!-- ========================================== -->
+  <div id="recipesDrawerModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-slate-900 border-t sm:border border-slate-800 rounded-t-3xl sm:rounded-2xl w-full max-w-lg p-5 space-y-4 max-h-[88vh] flex flex-col shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <i data-lucide="book-open" class="w-5 h-5 text-amber-400"></i>
+          <h3 class="text-base font-extrabold text-white">Scanned Recipe Instructions</h3>
+        </div>
+        <button onclick="closeRecipesDrawer()" class="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="savedRecipesContainer" class="flex-1 overflow-y-auto space-y-3 pr-1"></div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: GEMINI API KEY SETTINGS             -->
+  <!-- ========================================== -->
+  <div id="apiKeyModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <i data-lucide="key-round" class="w-5 h-5 text-blue-400"></i>
+          <h3 class="text-base font-extrabold text-white">Gemini API Key Setup</h3>
+        </div>
+        <button onclick="closeApiKeyModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed">
+        When running inside this preview, the built-in environment key works automatically. When saved to your <strong>Galaxy S25 Ultra home screen</strong> as a standalone app, paste your personal Gemini API key below so it stays saved in your phone's local storage.
+      </p>
+
+      <div class="space-y-1.5">
+        <label class="text-xs font-semibold text-slate-400">Your Gemini API Key (Optional inside Preview)</label>
+        <input type="password" id="customApiKeyInput" placeholder="AIzaSy..."
+          class="w-full rounded-xl bg-slate-950 border border-slate-700 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button onclick="clearSavedApiKey()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-semibold">
+          Clear Key
+        </button>
+        <button onclick="saveCustomApiKey()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs text-white font-bold">
+          Save Key to Phone
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- TOAST NOTIFICATION BANNER                  -->
+  <!-- ========================================== -->
+  <div id="toastBanner" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-opacity duration-200">
+    <div id="toastInner" class="bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-xl border border-emerald-400/30 flex items-center gap-2">
+      <i data-lucide="check-circle" class="w-4 h-4"></i>
+      <span id="toastMessage">Saved!</span>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- FIXED BOTTOM NAVIGATION BAR (3 TABS)       -->
+  <!-- ========================================== -->
+  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800">
+    <div class="max-w-xl mx-auto grid grid-cols-3 px-2 py-1.5">
+      <button onclick="switchTab('scan')" id="nav-btn-scan"
+        class="flex flex-col items-center justify-center py-2 rounded-xl text-blue-400 bg-blue-500/10 font-bold transition">
+        <i data-lucide="camera" class="w-5 h-5"></i>
+        <span class="text-[11px] mt-1">1. Scan Recipe</span>
+      </button>
+
+      <button onclick="switchTab('list')" id="nav-btn-list"
+        class="relative flex flex-col items-center justify-center py-2 rounded-xl text-slate-400 hover:text-slate-200 font-semibold transition">
+        <div class="relative">
+          <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+          <span id="navCartCountBadge" class="hidden absolute -top-1.5 -right-3 px-1.5 min-w-[18px] h-[18px] rounded-full bg-emerald-500 text-slate-950 text-[10px] font-extrabold flex items-center justify-center">0</span>
+        </div>
+        <span class="text-[11px] mt-1">2. Shopping List</span>
+      </button>
+
+      <button onclick="switchTab('stores')" id="nav-btn-stores"
+        class="flex flex-col items-center justify-center py-2 rounded-xl text-slate-400 hover:text-slate-200 font-semibold transition">
+        <i data-lucide="sliders-horizontal" class="w-5 h-5"></i>
+        <span class="text-[11px] mt-1">3. Store & Aisles</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ========================================== -->
+  <!-- APPLICATION LOGIC & GEMINI INTEGRATION     -->
+  <!-- ========================================== -->
+  <script>
+    // Environment key placeholder for Canvas runtime
+    const apiKey = "";
+
+    const STORAGE_KEY = "SCAN_TO_AISLE_S25_V1";
+
+    // Default Pre-Loaded Store Configurations (Meijer & Sam's Club)
+    const DEFAULT_STATE = {
+      activeStoreId: "meijer",
+      activeTab: "scan",
+      customApiKey: "",
+      stores: [
+        {
+          id: "meijer",
+          name: "Meijer",
+          aisles: [
+            "Unassigned / Needs Aisle",
+            "Produce",
+            "Bakery & Deli",
+            "Seafood & Meat Counter",
+            "Aisle 1 - International & Pasta",
+            "Aisle 3 - Canned Veggies & Beans",
+            "Aisle 5 - Condiments & Sauces",
+            "Aisle 7 - Oils, Vinegar & Spices",
+            "Aisle 9 - Baking & Grains",
+            "Dairy & Eggs",
+            "Frozen Foods"
+          ],
+          dictionary: {
+            "salmon": "Seafood & Meat Counter",
+            "chicken breast": "Seafood & Meat Counter",
+            "ground beef": "Seafood & Meat Counter",
+            "shrimp": "Seafood & Meat Counter",
+            "garlic": "Produce",
+            "lemon": "Produce",
+            "lime": "Produce",
+            "spinach": "Produce",
+            "red onion": "Produce",
+            "onion": "Produce",
+            "cherry tomatoes": "Produce",
+            "cucumber": "Produce",
+            "parsley": "Produce",
+            "dill": "Produce",
+            "avocado": "Produce",
+            "olive oil": "Aisle 7 - Oils, Vinegar & Spices",
+            "extra virgin olive oil": "Aisle 7 - Oils, Vinegar & Spices",
+            "oregano": "Aisle 7 - Oils, Vinegar & Spices",
+            "cumin": "Aisle 7 - Oils, Vinegar & Spices",
+            "paprika": "Aisle 7 - Oils, Vinegar & Spices",
+            "black pepper": "Aisle 7 - Oils, Vinegar & Spices",
+            "sea salt": "Aisle 7 - Oils, Vinegar & Spices",
+            "red wine vinegar": "Aisle 7 - Oils, Vinegar & Spices",
+            "chickpeas": "Aisle 3 - Canned Veggies & Beans",
+            "black beans": "Aisle 3 - Canned Veggies & Beans",
+            "diced tomatoes": "Aisle 3 - Canned Veggies & Beans",
+            "chicken broth": "Aisle 3 - Canned Veggies & Beans",
+            "quinoa": "Aisle 9 - Baking & Grains",
+            "rice": "Aisle 1 - International & Pasta",
+            "pasta": "Aisle 1 - International & Pasta",
+            "soy sauce": "Aisle 1 - International & Pasta",
+            "tahini": "Aisle 1 - International & Pasta",
+            "kalamata olives": "Aisle 5 - Condiments & Sauces",
+            "capers": "Aisle 5 - Condiments & Sauces",
+            "dijon mustard": "Aisle 5 - Condiments & Sauces",
+            "feta cheese": "Dairy & Eggs",
+            "greek yogurt": "Dairy & Eggs",
+            "butter": "Dairy & Eggs",
+            "eggs": "Dairy & Eggs",
+            "milk": "Dairy & Eggs",
+            "parmesan cheese": "Dairy & Eggs",
+            "pita bread": "Bakery & Deli"
+          }
+        },
+        {
+          id: "sams_club",
+          name: "Sam's Club",
+          aisles: [
+            "Unassigned / Needs Aisle",
+            "Produce Walk-In",
+            "Bakery",
+            "Fresh Meat & Seafood Case",
+            "Deli & Prepared Coolers",
+            "Walk-In Dairy / Eggs Cooler",
+            "Freezer Aisles",
+            "Bulk Pantry & Oils",
+            "Spices & Baking",
+            "Snacks & Beverages"
+          ],
+          dictionary: {
+            "salmon": "Fresh Meat & Seafood Case",
+            "chicken breast": "Fresh Meat & Seafood Case",
+            "ground beef": "Fresh Meat & Seafood Case",
+            "garlic": "Produce Walk-In",
+            "lemon": "Produce Walk-In",
+            "spinach": "Produce Walk-In",
+            "onion": "Produce Walk-In",
+            "red onion": "Produce Walk-In",
+            "cherry tomatoes": "Produce Walk-In",
+            "cucumber": "Produce Walk-In",
+            "avocado": "Produce Walk-In",
+            "olive oil": "Bulk Pantry & Oils",
+            "extra virgin olive oil": "Bulk Pantry & Oils",
+            "chickpeas": "Bulk Pantry & Oils",
+            "black beans": "Bulk Pantry & Oils",
+            "quinoa": "Bulk Pantry & Oils",
+            "rice": "Bulk Pantry & Oils",
+            "oregano": "Spices & Baking",
+            "cumin": "Spices & Baking",
+            "feta cheese": "Deli & Prepared Coolers",
+            "greek yogurt": "Walk-In Dairy / Eggs Cooler",
+            "butter": "Walk-In Dairy / Eggs Cooler",
+            "eggs": "Walk-In Dairy / Eggs Cooler",
+            "pita bread": "Bakery"
+          }
+        }
+      ],
+      shoppingList: [],
+      savedRecipes: []
+    };
+
+    let appState = loadState();
+    let selectedImageBase64 = null;
+    let selectedImageMimeType = null;
+    let currentExtractedDraft = null;
+    let currentReassignItemId = null;
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return JSON.parse(JSON.stringify(DEFAULT_STATE));
+        const parsed = JSON.parse(raw);
+        return {
+          ... DEFAULT_STATE,
+          ...parsed,
+          stores: parsed.stores && parsed.stores.length ? parsed.stores : DEFAULT_STATE.stores,
+          shoppingList: Array.isArray(parsed.shoppingList) ? parsed.shoppingList : [],
+          savedRecipes: Array.isArray(parsed.savedRecipes) ? parsed.savedRecipes : []
+        };
+      } catch (e) {
+        return JSON.parse(JSON.stringify(DEFAULT_STATE));
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      } catch (e) {
+        console.error("Failed to save state:", e);
+      }
+      updateBadgesAndHeader();
+    }
+
+    function getActiveStore() {
+      let store = appState.stores.find(s => s.id === appState.activeStoreId);
+      if (!store) {
+        store = appState.stores[0];
+        appState.activeStoreId = store.id;
+      }
+      return store;
+    }
+
+    function normalizeKey(str) {
+      return (str || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    // Look up an ingredient in the store's learned dictionary (supports exact or partial root match)
+    function lookupAisleInStoreDictionary(store, cleanName) {
+      const norm = normalizeKey(cleanName);
+      if (!norm) return null;
+      if (store.dictionary[norm] && store.aisles.includes(store.dictionary[norm])) {
+        return store.dictionary[norm];
+      }
+      // Check singular/plural variations or substring match
+      for (const [dictKey, aisleName] of Object.entries(store.dictionary)) {
+        if (!store.aisles.includes(aisleName)) continue;
+        if (norm === dictKey + "s" || dictKey === norm + "s") {
+          return aisleName;
+        }
+        if (norm.includes(dictKey) && dictKey.length >= 4) {
+          return aisleName;
+        }
+      }
+      return null;
+    }
+
+    // Resolve which aisle an shopping list item belongs to in the currently selected store
+    function resolveItemAisleForStore(item, store) {
+      // 1. Check store's explicit dictionary for this cleanName
+      const dictMatch = lookupAisleInStoreDictionary(store, item.cleanName || item.name);
+      if (dictMatch) return dictMatch;
+
+      // 2. Check if item has a per-store override
+      if (item.storeAisles && item.storeAisles[store.id] && store.aisles.includes(item.storeAisles[store.id])) {
+        return item.storeAisles[store.id];
+      }
+
+      // 3. Fallback to first aisle ("Unassigned / Needs Aisle")
+      return store.aisles[0] || "Unassigned / Needs Aisle";
+    }
+
+    // ==========================================
+    // UI RENDERING & NAVIGATION
+    // ==========================================
+    function switchTab(tabName) {
+      appState.activeTab = tabName;
+      ["scan", "list", "stores"].forEach(t => {
+        const sec = document.getElementById(`tab-${t}`);
+        const btn = document.getElementById(`nav-btn-${t}`);
+        if (t === tabName) {
+          sec.classList.remove("hidden");
+          btn.className = "relative flex flex-col items-center justify-center py-2 rounded-xl text-blue-400 bg-blue-500/10 font-bold transition";
+        } else {
+          sec.classList.add("hidden");
+          btn.className = "relative flex flex-col items-center justify-center py-2 rounded-xl text-slate-400 hover:text-slate-200 font-semibold transition";
+        }
+      });
+
+      if (tabName === "list") renderShoppingListTab();
+      if (tabName === "stores") renderStoresManagerTab();
+      updateBadgesAndHeader();
+      lucide.createIcons();
+    }
+
+    function updateBadgesAndHeader() {
+      const store = getActiveStore();
+
+      // Header store select
+      const headerSelect = document.getElementById("headerStoreSelect");
+      headerSelect.innerHTML = appState.stores.map(s =>
+        `<option value="${s.id}" ${s.id === store.id ? "selected" : ""}>${escapeHtml(s.name)}</option>`
+      ).join("");
+
+      // Scan tab banner
+      document.getElementById("scanBannerStoreName").textContent = store.name;
+      document.getElementById("loadingStoreSpan").textContent = store.name;
+
+      // Cart badge count (unchecked items)
+      const uncheckedCount = appState.shoppingList.filter(i => !i.checked).length;
+      const navBadge = document.getElementById("navCartCountBadge");
+      if (uncheckedCount > 0) {
+        navBadge.textContent = uncheckedCount;
+        navBadge.classList.remove("hidden");
+      } else {
+        navBadge.classList.add("hidden");
+      }
+
+      // Saved recipes count badge
+      const recipeBadge = document.getElementById("recipeCountBadge");
+      if (appState.savedRecipes.length > 0) {
+        recipeBadge.textContent = appState.savedRecipes.length;
+        recipeBadge.classList.remove("hidden");
+      } else {
+        recipeBadge.classList.add("hidden");
+      }
+
+      // API Key dot
+      const hasKey = Boolean((appState.customApiKey && appState.customApiKey.trim()) || (apiKey && apiKey.trim()));
+      const dot = document.getElementById("apiKeyStatusDot");
+      dot.className = `w-2.5 h-2.5 rounded-full absolute top-1.5 right-1.5 ${hasKey ? "bg-emerald-500" : "bg-amber-400"}`;
+    }
+
+    function handleActiveStoreChange(newStoreId) {
+      appState.activeStoreId = newStoreId;
+      saveState();
+
+      const store = getActiveStore();
+      showToast(`Switched store to ${store.name}`);
+
+      // Re-evaluate open draft if on scan tab
+      if (currentExtractedDraft) {
+        renderExtractedReviewCard();
+      }
+      if (appState.activeTab === "list") {
+        renderShoppingListTab();
+      } else if (appState.activeTab === "stores") {
+        renderStoresManagerTab();
+      }
+    }
+
+    // ==========================================
+    // TAB 1: CAMERA / IMAGE / TEXT SCANNING
+    // ==========================================
+    function handleImageSelected(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      // Compress and resize image on client so S25 Ultra 50MP/200MP photos upload in <1 second
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const MAX_DIM = 1600;
+          let width = img.width;
+          let height = img.height;
+          if (width > height && width > MAX_DIM) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
+          } else if (height > MAX_DIM) {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.84);
+          selectedImageBase64 = dataUrl.split(",")[1];
+          selectedImageMimeType = "image/jpeg";
+
+          document.getElementById("imagePreviewEl").src = dataUrl;
+          document.getElementById("imagePreviewContainer").classList.remove("hidden");
+          lucide.createIcons();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearSelectedImage() {
+      selectedImageBase64 = null;
+      selectedImageMimeType = null;
+      document.getElementById("cameraInput").value = "";
+      document.getElementById("galleryInput").value = "";
+      document.getElementById("imagePreviewContainer").classList.add("hidden");
+    }
+
+    function toggleTextPasteDrawer() {
+      const body = document.getElementById("textPasteBody");
+      const chevron = document.getElementById("pasteChevron");
+      body.classList.toggle("hidden");
+      chevron.classList.toggle("rotate-180");
+    }
+
+    function fillSampleRecipeText() {
+      const sample = `Greek Sheet-Pan Lemon Garlic Salmon & Chickpeas
+Servings: 4
+
+Ingredients:
+2 lbs fresh Atlantic salmon fillets, skinless
+1 can (15 oz) chickpeas, rinsed and drained
+2 tbsp extra virgin olive oil
+3 cloves garlic, finely minced
+2 medium lemons (1 juiced, 1 sliced into rounds)
+1 small red onion, sliced into wedges
+1 cup cherry tomatoes, halved
+1/2 cup crumbled feta cheese
+1/3 cup pitted Kalamata olives
+2 tsp dried oregano
+1/2 cup fresh parsley, chopped
+1 cup Greek yogurt (for serving)
+4 warm pita breads
+
+Preparation Instructions:
+1. Preheat oven to 425°F (220°C) and line a large rimmed baking sheet with parchment paper.
+2. Toss chickpeas, sliced red onion, and cherry tomatoes with 1 tablespoon olive oil, half the minced garlic, and 1 teaspoon dried oregano. Spread evenly on the sheet pan.
+3. Place salmon fillets in the center of the pan. Rub with remaining olive oil, garlic, lemon juice, and oregano. Top with lemon slices.
+4. Bake for 13 to 15 minutes until salmon flakes easily with a fork.
+5. Scatter crumbled feta cheese, Kalamata olives, and fresh chopped parsley over the top. Serve warm with Greek yogurt and pita bread.`;
+
+      document.getElementById("rawRecipeTextarea").value = sample;
+    }
+
+    // Call Gemini 3 Flash API with Exponential Backoff
+    async function callGeminiWithBackoff(payload) {
+      const activeKey = (appState.customApiKey && appState.customApiKey.trim()) ? appState.customApiKey.trim() : apiKey;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${activeKey}`;
+
+      const delays = [1000, 2000, 4000];
+      let lastError = null;
+
+      for (let attempt = 0; attempt <= delays.length; attempt++) {
+        try {
+          const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errText}`);
+          }
+          return await response.json();
+        } catch (err) {
+          lastError = err;
+          if (attempt < delays.length) {
+            await new Promise(r => setTimeout(r, delays[attempt]));
+          }
+        }
+      }
+      throw lastError;
+    }
+
+    async function runGeminiRecipeExtraction(mode) {
+      const store = getActiveStore();
+      const loadingBox = document.getElementById("scanLoadingBox");
+      const reviewCard = document.getElementById("extractedReviewCard");
+
+      if (mode === "image" && !selectedImageBase64) {
+        showToast("Please snap or select a recipe photo first", true);
+        return;
+      }
+
+      const rawText = document.getElementById("rawRecipeTextarea").value.trim();
+      if (mode === "text" && !rawText) {
+        showToast("Please paste recipe text first", true);
+        return;
+      }
+
+      loadingBox.classList.remove("hidden");
+      reviewCard.classList.add("hidden");
+
+      const systemPrompt = `You are an expert culinary OCR and grocery aisle categorization assistant.
+Extract the recipe title, servings, numbered preparation instructions, and structured ingredients list.
+For each ingredient:
+- "cleanName": strictly the singular, lowercase core grocery item name used for store lookup (e.g. "salmon", "olive oil", "garlic", "red onion", "chickpeas", "feta cheese"). Strip out quantities, brands, and prep words like "chopped" or "fresh".
+- "quantity": the amount and unit (e.g., "2 lbs", "1 can (15 oz)", "3 cloves").
+- "prepNote": any preparation notes or descriptors (e.g., "finely minced", "rinsed and drained").
+- "suggestedAisle": choose the single best matching aisle from the user's active store ("${store.name}") aisle list: ${JSON.stringify(store.aisles)}.`;
+
+      const responseSchema = {
+        type: "OBJECT",
+        properties: {
+          title: { type: "STRING" },
+          servings: { type: "STRING" },
+          instructions: {
+            type: "ARRAY",
+            items: { type: "STRING" }
+          },
+          ingredients: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                rawText: { type: "STRING" },
+                cleanName: { type: "STRING" },
+                quantity: { type: "STRING" },
+                prepNote: { type: "STRING" },
+                suggestedAisle: { type: "STRING" }
+              },
+              required: ["cleanName", "quantity", "suggestedAisle"]
+            }
+          }
+        },
+        required: ["title", "instructions", "ingredients"]
+      };
+
+      const userParts = [];
+      if (mode === "image") {
+        userParts.push({
+          text: `Read this recipe image carefully (even if multi-column or on a screen). Extract the full recipe and match each ingredient to one of these exact "${store.name}" aisles: ${store.aisles.join(", ")}.`
+        });
+        userParts.push({
+          inlineData: {
+            mimeType: selectedImageMimeType || "image/jpeg",
+            data: selectedImageBase64
+          }
+        });
+      } else {
+        userParts.push({
+          text: `Extract the recipe from this text and match each ingredient to one of these exact "${store.name}" aisles (${store.aisles.join(", ")}):\n\n${rawText}`
+        });
+      }
+
+      const payload = {
+        contents: [{ role: "user", parts: userParts }],
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: responseSchema
+        }
+      };
+
+      try {
+        const result = await callGeminiWithBackoff(payload);
+        const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!jsonText) throw new Error("Empty response from Gemini.");
+
+        const parsed = JSON.parse(jsonText);
+        buildExtractedDraft(parsed);
+        loadingBox.classList.add("hidden");
+        renderExtractedReviewCard();
+      } catch (error) {
+        loadingBox.classList.add("hidden");
+        showToast("AI Scan Error — check your API key in top-right settings or use Offline Parse.", true);
+        openApiKeyModal();
+      }
+    }
+
+    // Offline Fallback Parser for Pasted Text
+    function runQuickOfflineParse() {
+      const rawText = document.getElementById("rawRecipeTextarea").value.trim();
+      if (!rawText) {
+        showToast("Paste some recipe lines first!", true);
+        return;
+      }
+
+      const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const title = lines[0] || "Pasted Recipe";
+      const ingredients = [];
+      const instructions = [];
+      let mode = "ingredients";
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        const lower = line.toLowerCase();
+        if (lower.startsWith("instruction") || lower.startsWith("preparation") || lower.startsWith("direction") || lower.startsWith("steps")) {
+          mode = "instructions";
+          continue;
+        }
+        if (lower.startsWith("ingredient") || lower.startsWith("servings")) {
+          continue;
+        }
+
+        if (mode === "instructions" || /^\d+\.\s+/.test(line)) {
+          instructions.push(line.replace(/^\d+\.\s*/, ""));
+        } else {
+          // Simple offline extraction of quantity + core ingredient
+          const qtyMatch = line.match(/^([\d\/\.\s\-]+(?:lbs?|oz|cups?|tbsp|tsp|cloves?|cans?|medium|small|large|packages?)?)\s+(.*)$/i);
+          const qty = qtyMatch ? qtyMatch[1].trim() : "1";
+          const rest = qtyMatch ? qtyMatch[2].trim() : line;
+          const cleanPart = rest.split(",")[0].replace(/\(.*?\)/g, "").trim().toLowerCase();
+          ingredients.push({
+            rawText: line,
+            cleanName: cleanPart,
+            quantity: qty,
+            prepNote: rest.includes(",") ? rest.split(",").slice(1).join(",").trim() : "",
+            suggestedAisle: "Unassigned / Needs Aisle"
+          });
+        }
+      }
+
+      buildExtractedDraft({
+        title,
+        servings: "",
+        instructions,
+        ingredients
+      });
+      renderExtractedReviewCard();
+      showToast("Parsed offline using saved store dictionary!");
+    }
+
+    function buildExtractedDraft(parsedData) {
+      const store = getActiveStore();
+      currentExtractedDraft = {
+        id: "rec_" + Date.now(),
+        title: parsedData.title || "Scanned Recipe",
+        servings: parsedData.servings || "",
+        instructions: Array.isArray(parsedData.instructions) ? parsedData.instructions : [],
+        ingredients: (parsedData.ingredients || []).map((ing, idx) => {
+          const clean = normalizeKey(ing.cleanName || ing.rawText || "item");
+          const savedDictAisle = lookupAisleInStoreDictionary(store, clean);
+          const validSuggested = store.aisles.includes(ing.suggestedAisle)
+            ? ing.suggestedAisle
+            : store.aisles[0];
+
+          return {
+            tempId: "ing_" + idx + "_" + Date.now(),
+            include: true,
+            cleanName: clean,
+            displayName: capitalizeWords(clean),
+            quantity: ing.quantity || "",
+            prepNote: ing.prepNote || "",
+            assignedAisle: savedDictAisle || validSuggested,
+            matchSource: savedDictAisle ? "dictionary" : "ai"
+          };
+        })
+      };
+    }
+
+    function renderExtractedReviewCard() {
+      if (!currentExtractedDraft) return;
+      const store = getActiveStore();
+      const card = document.getElementById("extractedReviewCard");
+      card.classList.remove("hidden");
+
+      document.getElementById("extractedTitle").textContent = currentExtractedDraft.title;
+      document.getElementById("extractedServings").textContent = currentExtractedDraft.servings
+        ? `Servings: ${currentExtractedDraft.servings} • Matched to ${store.name}`
+        : `Matched to ${store.name} Aisles`;
+
+      const listEl = document.getElementById("extractedIngredientsList");
+      listEl.innerHTML = currentExtractedDraft.ingredients.map((ing, idx) => {
+        // Re-verify dictionary match if user switched stores while reviewing
+        const dictAisle = lookupAisleInStoreDictionary(store, ing.cleanName);
+        if (dictAisle) {
+          ing.assignedAisle = dictAisle;
+          ing.matchSource = "dictionary";
+        } else if (!store.aisles.includes(ing.assignedAisle)) {
+          ing.assignedAisle = store.aisles[0];
+        }
+
+        const badgeHtml = ing.matchSource === "dictionary"
+          ? `<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">Saved Rule</span>`
+          : `<span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-bold">AI Match</span>`;
+
+        const aisleOptions = store.aisles.map(a =>
+          `<option value="${escapeHtml(a)}" ${a === ing.assignedAisle ? "selected" : ""}>${escapeHtml(a)}</option>`
+        ).join("");
+
+        return `
+          <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex flex-col gap-2">
+            <div class="flex items-start justify-between gap-2">
+              <label class="flex items-start gap-2.5 cursor-pointer flex-1">
+                <input type="checkbox" ${ing.include ? "checked" : ""}
+                  onchange="toggleDraftIngredientInclude(${idx}, this.checked)"
+                  class="mt-1 w-4 h-4 rounded accent-emerald-500" />
+                <div>
+                  <div class="text-sm font-bold text-white leading-snug">
+                    ${escapeHtml(ing.displayName)}
+                    ${ing.quantity ? `<span class="ml-1.5 text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-800 text-blue-300">${escapeHtml(ing.quantity)}</span>` : ""}
+                  </div>
+                  ${ing.prepNote ? `<div class="text-xs text-slate-400 mt-0.5">${escapeHtml(ing.prepNote)}</div>` : ""}
+                </div>
+              </label>
+              ${badgeHtml}
+            </div>
+
+            <div class="flex items-center gap-2 pl-6">
+              <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+              <select onchange="handleDraftIngredientAisleChange(${idx}, this.value)"
+                class="flex-1 rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                ${aisleOptions}
+              </select>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // Instructions preview
+      const stepsCount = currentExtractedDraft.instructions.length;
+      document.getElementById("extractedStepsCount").textContent = stepsCount;
+      const stepsList = document.getElementById("extractedInstructionsList");
+      stepsList.innerHTML = stepsCount > 0
+        ? currentExtractedDraft.instructions.map(step => `<li class="leading-relaxed">${escapeHtml(step)}</li>`).join("")
+        : `<li class="text-slate-500 list-none">No step-by-step instructions found in scan.</li>`;
+
+      lucide.createIcons();
+      card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    function toggleDraftIngredientInclude(index, checked) {
+      if (!currentExtractedDraft) return;
+      currentExtractedDraft.ingredients[index].include = checked;
+    }
+
+    function handleDraftIngredientAisleChange(index, newAisle) {
+      if (!currentExtractedDraft) return;
+      const store = getActiveStore();
+      const ing = currentExtractedDraft.ingredients[index];
+      ing.assignedAisle = newAisle;
+      ing.matchSource = "dictionary";
+
+      // Immediately teach the store's dictionary
+      store.dictionary[normalizeKey(ing.cleanName)] = newAisle;
+      saveState();
+      renderExtractedReviewCard();
+      showToast(`Learned: "${ing.displayName}" → ${newAisle}`);
+    }
+
+    function toggleExtractedSteps() {
+      const list = document.getElementById("extractedInstructionsList");
+      const chev = document.getElementById("extractedStepsChevron");
+      list.classList.toggle("hidden");
+      chev.classList.toggle("rotate-180");
+    }
+
+    function closeExtractedReview() {
+      currentExtractedDraft = null;
+      document.getElementById("extractedReviewCard").classList.add("hidden");
+    }
+
+    function confirmAddExtractedToShoppingList() {
+      if (!currentExtractedDraft) return;
+      const store = getActiveStore();
+      const selectedIngs = currentExtractedDraft.ingredients.filter(i => i.include);
+
+      if (selectedIngs.length === 0) {
+        showToast("Select at least one ingredient to add", true);
+        return;
+      }
+
+      // Save the recipe instructions to Saved Recipes drawer
+      appState.savedRecipes.unshift({
+        id: currentExtractedDraft.id,
+        title: currentExtractedDraft.title,
+        servings: currentExtractedDraft.servings,
+        instructions: currentExtractedDraft.instructions,
+        ingredientsSummary: selectedIngs.map(i => `${i.quantity ? i.quantity + " " : ""}${i.displayName}`),
+        scannedAt: new Date().toLocaleDateString()
+      });
+      if (appState.savedRecipes.length > 25) {
+        appState.savedRecipes.pop();
+      }
+
+      // Add or merge each ingredient into shoppingList
+      selectedIngs.forEach(ing => {
+        const clean = normalizeKey(ing.cleanName);
+        // Save AI or user-verified aisle in active store dictionary so it's remembered
+        if (ing.assignedAisle && ing.assignedAisle !== "Unassigned / Needs Aisle") {
+          store.dictionary[clean] = ing.assignedAisle;
+        }
+
+        // Check if unchecked item with same cleanName already exists
+        const existing = appState.shoppingList.find(item => !item.checked && normalizeKey(item.cleanName) === clean);
+        if (existing) {
+          if (ing.quantity && !existing.quantity.includes(ing.quantity)) {
+            existing.quantity = existing.quantity ? `${existing.quantity} + ${ing.quantity}` : ing.quantity;
+          }
+          if (currentExtractedDraft.title && !existing.recipeName.includes(currentExtractedDraft.title)) {
+            existing.recipeName = existing.recipeName
+              ? `${existing.recipeName}, ${currentExtractedDraft.title}`
+              : currentExtractedDraft.title;
+          }
+          existing.storeAisles[store.id] = ing.assignedAisle;
+        } else {
+          appState.shoppingList.push({
+            id: "item_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+            name: ing.displayName,
+            cleanName: clean,
+            quantity: ing.quantity,
+            prepNote: ing.prepNote,
+            recipeName: currentExtractedDraft.title,
+            checked: false,
+            storeAisles: {
+              [store.id]: ing.assignedAisle
+            }
+          });
+        }
+      });
+
+      saveState();
+      closeExtractedReview();
+      clearSelectedImage();
+      showToast(`Added ${selectedIngs.length} items to ${store.name} list!`);
+      switchTab("list");
+    }
+
+    // ==========================================
+    // TAB 2: SHOPPING LIST (SORTED BY STORE)
+    // ==========================================
+    function renderShoppingListTab() {
+      const store = getActiveStore();
+      document.getElementById("listStoreHeaderTitle").textContent = store.name;
+
+      // Populate Quick Add Aisle Dropdown
+      const quickAisleSelect = document.getElementById("quickAddAisleSelect");
+      const currentQuickVal = quickAisleSelect.value;
+      quickAisleSelect.innerHTML = `<option value="AUTO">Auto-Match ${escapeHtml(store.name)} Aisle</option>` +
+        store.aisles.map(a => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join("");
+      if (currentQuickVal && (currentQuickVal === "AUTO" || store.aisles.includes(currentQuickVal))) {
+        quickAisleSelect.value = currentQuickVal;
+      }
+
+      const total = appState.shoppingList.length;
+      const checkedCount = appState.shoppingList.filter(i => i.checked).length;
+      document.getElementById("listProgressText").textContent = `${checkedCount} / ${total}`;
+      const pct = total > 0 ? Math.round((checkedCount / total) * 100) : 0;
+      document.getElementById("listProgressBar").style.width = `${pct}%`;
+
+      const container = document.getElementById("shoppingListGroupsContainer");
+      const footerActions = document.getElementById("listFooterActions");
+
+      if (total === 0) {
+        footerActions.classList.add("hidden");
+        container.innerHTML = `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center space-y-3">
+            <div class="w-14 h-14 rounded-2xl bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+              <i data-lucide="shopping-basket" class="w-7 h-7"></i>
+            </div>
+            <h3 class="text-base font-bold text-white">Your ${escapeHtml(store.name)} List is Empty</h3>
+            <p class="text-xs text-slate-400 max-w-xs mx-auto">
+              Scan a recipe photo in Tab 1 or add an item above. Items will automatically group by your ${escapeHtml(store.name)} walking order.
+            </p>
+            <button onclick="switchTab('scan')" class="mt-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs inline-flex items-center gap-1.5">
+              <i data-lucide="camera" class="w-4 h-4"></i>
+              <span>Scan a Recipe</span>
+            </button>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      footerActions.classList.remove("hidden");
+
+      // Group items by store's aisle order
+      const grouped = {};
+      store.aisles.forEach(aisle => { grouped[aisle] = []; });
+
+      appState.shoppingList.forEach(item => {
+        const resolvedAisle = resolveItemAisleForStore(item, store);
+        if (!grouped[resolvedAisle]) {
+          grouped[resolvedAisle] = [];
+        }
+        grouped[resolvedAisle].push(item);
+      });
+
+      let html = "";
+      store.aisles.forEach(aisleName => {
+        const itemsInAisle = grouped[aisleName] || [];
+        if (itemsInAisle.length === 0) return;
+
+        // Sort unchecked first, then alphabetically
+        itemsInAisle.sort((a, b) => {
+          if (a.checked !== b.checked) return a.checked ? 1 : -1;
+          return a.name.localeCompare(b.name);
+        });
+
+        const isUnassigned = aisleName === "Unassigned / Needs Aisle";
+        const headerStyle = isUnassigned
+          ? "bg-amber-500/15 border-amber-500/30 text-amber-300"
+          : "bg-slate-800/90 border-slate-700 text-blue-300";
+
+        html += `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
+            <!-- Aisle Header -->
+            <div class="px-4 py-2.5 border-b ${headerStyle} flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i data-lucide="${isUnassigned ? "help-circle" : "map-pin"}" class="w-4 h-4"></i>
+                <h3 class="text-xs font-extrabold uppercase tracking-wider">${escapeHtml(aisleName)}</h3>
+              </div>
+              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-950/60 text-slate-300">
+                ${itemsInAisle.filter(i => !i.checked).length} left
+              </span>
+            </div>
+
+            <!-- Items in Aisle -->
+            <div class="divide-y divide-slate-800/70">
+              ${itemsInAisle.map(item => renderShoppingItemRow(item, aisleName)).join("")}
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+      lucide.createIcons();
+    }
+
+    function renderShoppingItemRow(item, currentAisle) {
+      const checkedClass = item.checked ? "opacity-50 line-through text-slate-400" : "text-white";
+      return `
+        <div class="p-3.5 flex items-center justify-between gap-3 hover:bg-slate-800/30 transition">
+          <!-- Checkbox + Name -->
+          <label class="flex items-start gap-3.5 flex-1 cursor-pointer select-none">
+            <input type="checkbox" class="item-checkbox sr-only" ${item.checked ? "checked" : ""}
+              onchange="toggleShoppingItemCheck('${item.id}')" />
+            <div class="mt-0.5 w-6 h-6 rounded-lg border-2 border-slate-600 flex items-center justify-center shrink-0 transition">
+              ${item.checked ? `<i data-lucide="check" class="w-4 h-4 text-slate-950 stroke-[3]"></i>` : ""}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-base font-bold leading-snug ${checkedClass}">${escapeHtml(item.name)}</span>
+                ${item.quantity ? `<span class="text-xs font-bold px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-300 border border-blue-500/20">${escapeHtml(item.quantity)}</span>` : ""}
+              </div>
+              ${(item.prepNote || item.recipeName) ? `
+                <div class="text-xs text-slate-400 mt-0.5 truncate">
+                  ${item.prepNote ? escapeHtml(item.prepNote) : ""}
+                  ${item.prepNote && item.recipeName ? " • " : ""}
+                  ${item.recipeName ? `<span class="text-slate-500">From: ${escapeHtml(item.recipeName)}</span>` : ""}
+                </div>
+              ` : ""}
+            </div>
+          </label>
+
+          <!-- Quick Aisle Reassign Pill + Delete -->
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button onclick="openReassignModal('${item.id}')" title="Tap to move & teach aisle"
+              class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-semibold text-slate-300 flex items-center gap-1 transition">
+              <span class="max-w-[95px] truncate">${escapeHtml(currentAisle.replace(/^Aisle\s+/i, "A"))}</span>
+              <i data-lucide="arrow-up-down" class="w-3 h-3 text-blue-400 shrink-0"></i>
+            </button>
+            <button onclick="deleteShoppingItem('${item.id}')" title="Remove item"
+              class="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 transition">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function toggleShoppingItemCheck(itemId) {
+      const item = appState.shoppingList.find(i => i.id === itemId);
+      if (!item) return;
+      item.checked = !item.checked;
+      saveState();
+      renderShoppingListTab();
+    }
+
+    function deleteShoppingItem(itemId) {
+      appState.shoppingList = appState.shoppingList.filter(i => i.id !== itemId);
+      saveState();
+      renderShoppingListTab();
+    }
+
+    function handleQuickAddItem(event) {
+      event.preventDefault();
+      const nameInput = document.getElementById("quickAddName");
+      const qtyInput = document.getElementById("quickAddQty");
+      const aisleSelect = document.getElementById("quickAddAisleSelect");
+
+      const rawName = nameInput.value.trim();
+      if (!rawName) return;
+
+      const store = getActiveStore();
+      const clean = normalizeKey(rawName);
+      let chosenAisle = aisleSelect.value;
+
+      if (chosenAisle === "AUTO") {
+        chosenAisle = lookupAisleInStoreDictionary(store, clean) || store.aisles[0];
+      } else {
+        // User explicitly picked an aisle -> save rule to dictionary
+        store.dictionary[clean] = chosenAisle;
+      }
+
+      appState.shoppingList.unshift({
+        id: "item_" + Date.now(),
+        name: capitalizeWords(rawName),
+        cleanName: clean,
+        quantity: qtyInput.value.trim(),
+        prepNote: "",
+        recipeName: "",
+        checked: false,
+        storeAisles: {
+          [store.id]: chosenAisle
+        }
+      });
+
+      nameInput.value = "";
+      qtyInput.value = "";
+      saveState();
+      renderShoppingListTab();
+      showToast(`Added "${capitalizeWords(rawName)}" to ${chosenAisle}`);
+    }
+
+    function clearCheckedShoppingItems() {
+      const before = appState.shoppingList.length;
+      appState.shoppingList = appState.shoppingList.filter(i => !i.checked);
+      const removed = before - appState.shoppingList.length;
+      saveState();
+      renderShoppingListTab();
+      showToast(`Cleared ${removed} checked item(s)`);
+    }
+
+    function clearAllShoppingItems() {
+      appState.shoppingList = [];
+      saveState();
+      renderShoppingListTab();
+      showToast("Shopping list cleared");
+    }
+
+    // ==========================================
+    // QUICK AISLE REASSIGN MODAL (ONE-TAP LEARN)
+    // ==========================================
+    function openReassignModal(itemId) {
+      const item = appState.shoppingList.find(i => i.id === itemId);
+      if (!item) return;
+      currentReassignItemId = itemId;
+
+      const store = getActiveStore();
+      const currentAisle = resolveItemAisleForStore(item, store);
+
+      document.getElementById("reassignModalItemTitle").textContent = item.name;
+      document.getElementById("reassignModalStoreName").textContent = store.name;
+      document.getElementById("reassignNewAisleInput").value = "";
+
+      const listEl = document.getElementById("reassignModalAislesList");
+      listEl.innerHTML = store.aisles.map(aisle => {
+        const isCurrent = aisle === currentAisle;
+        return `
+          <button onclick="confirmReassignItemToAisle('${escapeJsString(aisle)}')"
+            class="w-full text-left px-3.5 py-3 rounded-xl border text-xs font-bold flex items-center justify-between transition ${
+              isCurrent
+                ? "bg-blue-600/20 border-blue-500 text-white"
+                : "bg-slate-950 hover:bg-slate-800 border-slate-800 text-slate-200"
+            }">
+            <span>${escapeHtml(aisle)}</span>
+            ${isCurrent ? `<span class="text-[10px] px-2 py-0.5 rounded bg-blue-500 text-white">Current</span>` : `<i data-lucide="chevron-right" class="w-4 h-4 text-slate-500"></i>`}
+          </button>
+        `;
+      }).join("");
+
+      document.getElementById("reassignModal").classList.remove("hidden");
+      lucide.createIcons();
+    }
+
+    function closeReassignModal() {
+      currentReassignItemId = null;
+      document.getElementById("reassignModal").classList.add("hidden");
+    }
+
+    function confirmReassignItemToAisle(newAisle) {
+      const item = appState.shoppingList.find(i => i.id === currentReassignItemId);
+      if (!item) return;
+
+      const store = getActiveStore();
+      const clean = normalizeKey(item.cleanName || item.name);
+
+      // Permanently save rule in active store's dictionary
+      store.dictionary[clean] = newAisle;
+      if (!item.storeAisles) item.storeAisles = {};
+      item.storeAisles[store.id] = newAisle;
+
+      saveState();
+      closeReassignModal();
+      renderShoppingListTab();
+      showToast(`Moved "${item.name}" to ${newAisle} (Saved for ${store.name})`);
+    }
+
+    function handleCreateAndAssignNewAisle(event) {
+      event.preventDefault();
+      const input = document.getElementById("reassignNewAisleInput");
+      const newAisle = input.value.trim();
+      if (!newAisle) return;
+
+      const store = getActiveStore();
+      if (!store.aisles.includes(newAisle)) {
+        store.aisles.push(newAisle);
+      }
+      confirmReassignItemToAisle(newAisle);
+    }
+
+    // ==========================================
+    // TAB 3: STORE & AISLE MANAGER
+    // ==========================================
+    function renderStoresManagerTab() {
+      const activeStore = getActiveStore();
+
+      // Store switcher pills
+      const pillsEl = document.getElementById("storeManagerPills");
+      pillsEl.innerHTML = appState.stores.map(s => {
+        const active = s.id === activeStore.id;
+        return `
+          <button onclick="handleActiveStoreChange('${s.id}')"
+            class="px-3.5 py-2 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${
+              active
+                ? "bg-blue-600 text-white border-blue-400 shadow-lg shadow-blue-600/20"
+                : "bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800"
+            }">
+            <i data-lucide="store" class="w-3.5 h-3.5"></i>
+            <span>${escapeHtml(s.name)}</span>
+            <span class="text-[10px] opacity-75">(${s.aisles.length})</span>
+          </button>
+        `;
+      }).join("");
+
+      document.getElementById("editingStoreNameSpan").textContent = activeStore.name;
+      document.getElementById("dictStoreNameSpan").textContent = activeStore.name;
+
+      // Hide delete store button if only 1 store left
+      document.getElementById("deleteStoreBtn").style.display = appState.stores.length > 1 ? "inline-block" : "none";
+
+      // Render Aisles Editor List
+      const aislesListEl = document.getElementById("storeAislesEditorList");
+      aislesListEl.innerHTML = activeStore.aisles.map((aisle, index) => {
+        const isDefaultUnassigned = index === 0 && aisle === "Unassigned / Needs Aisle";
+        return `
+          <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2">
+            <span class="w-6 text-center text-[11px] font-bold text-slate-500">${index + 1}</span>
+
+            <input type="text" value="${escapeHtml(aisle)}" ${isDefaultUnassigned ? "readonly" : ""}
+              onchange="handleRenameAisle(${index}, this.value)"
+              aria-label="Aisle Name"
+              class="flex-1 bg-transparent text-xs font-semibold text-white px-2 py-1 rounded-lg border border-transparent focus:border-blue-500 focus:bg-slate-900 focus:outline-none ${isDefaultUnassigned ? "opacity-60 cursor-not-allowed" : ""}" />
+
+            <div class="flex items-center gap-1">
+              <button onclick="moveAisleOrder(${index}, -1)" ${index <= 1 ? "disabled" : ""}
+                title="Move Up"
+                class="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 disabled:opacity-25">
+                <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>
+              </button>
+              <button onclick="moveAisleOrder(${index}, 1)" ${index === 0 || index === activeStore.aisles.length - 1 ? "disabled" : ""}
+                title="Move Down"
+                class="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 disabled:opacity-25">
+                <i data-lucide="arrow-down" class="w-3.5 h-3.5"></i>
+              </button>
+              ${!isDefaultUnassigned ? `
+                <button onclick="deleteAisleFromStore(${index})" title="Delete Aisle"
+                  class="p-1.5 rounded-lg bg-slate-900 hover:bg-rose-950 text-slate-400 hover:text-rose-400">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              ` : ""}
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // Populate Dictionary Manual Add Aisle Select
+      const dictAisleSelect = document.getElementById("dictNewAisleSelect");
+      dictAisleSelect.innerHTML = activeStore.aisles
+        .filter(a => a !== "Unassigned / Needs Aisle")
+        .map(a => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`)
+        .join("");
+
+      renderDictionaryEditor();
+      lucide.createIcons();
+    }
+
+    function handleAddNewStore(event) {
+      event.preventDefault();
+      const input = document.getElementById("newStoreNameInput");
+      const name = input.value.trim();
+      if (!name) return;
+
+      const id = "store_" + Date.now();
+      appState.stores.push({
+        id,
+        name,
+        aisles: [
+          "Unassigned / Needs Aisle",
+          "Produce",
+          "Bakery & Deli",
+          "Meat & Seafood",
+          "Pantry & Canned Goods",
+          "Spices & Oils",
+          "Dairy & Eggs",
+          "Frozen"
+        ],
+        dictionary: {
+          "garlic": "Produce",
+          "onion": "Produce",
+          "lemon": "Produce",
+          "olive oil": "Spices & Oils",
+          "milk": "Dairy & Eggs",
+          "eggs": "Dairy & Eggs",
+          "butter": "Dairy & Eggs"
+        }
+      });
+
+      appState.activeStoreId = id;
+      input.value = "";
+      saveState();
+      renderStoresManagerTab();
+      showToast(`Created store "${name}"`);
+    }
+
+    function deleteActiveStore() {
+      if (appState.stores.length <= 1) return;
+      const store = getActiveStore();
+      appState.stores = appState.stores.filter(s => s.id !== store.id);
+      appState.activeStoreId = appState.stores[0].id;
+      saveState();
+      renderStoresManagerTab();
+      showToast(`Deleted "${store.name}"`);
+    }
+
+    function handleAddNewAisle(event) {
+      event.preventDefault();
+      const input = document.getElementById("newAisleNameInput");
+      const name = input.value.trim();
+      if (!name) return;
+
+      const store = getActiveStore();
+      if (store.aisles.includes(name)) {
+        showToast("That aisle already exists!", true);
+        return;
+      }
+
+      store.aisles.push(name);
+      input.value = "";
+      saveState();
+      renderStoresManagerTab();
+      showToast(`Added "${name}" to ${store.name}`);
+    }
+
+    function handleRenameAisle(index, newNameRaw) {
+      const newName = newNameRaw.trim();
+      const store = getActiveStore();
+      const oldName = store.aisles[index];
+      if (!newName || newName === oldName) {
+        renderStoresManagerTab();
+        return;
+      }
+
+      store.aisles[index] = newName;
+
+      // Update any dictionary rules pointing to oldName
+      Object.keys(store.dictionary).forEach(k => {
+        if (store.dictionary[k] === oldName) {
+          store.dictionary[k] = newName;
+        }
+      });
+
+      // Update shopping list items pointing to oldName
+      appState.shoppingList.forEach(item => {
+        if (item.storeAisles && item.storeAisles[store.id] === oldName) {
+          item.storeAisles[store.id] = newName;
+        }
+      });
+
+      saveState();
+      renderStoresManagerTab();
+      showToast(`Renamed aisle to "${newName}"`);
+    }
+
+    function moveAisleOrder(index, direction) {
+      const store = getActiveStore();
+      const targetIndex = index + direction;
+      // Keep index 0 ("Unassigned / Needs Aisle") at top
+      if (targetIndex < 1 || targetIndex >= store.aisles.length) return;
+
+      const temp = store.aisles[index];
+      store.aisles[index] = store.aisles[targetIndex];
+      store.aisles[targetIndex] = temp;
+
+      saveState();
+      renderStoresManagerTab();
+    }
+
+    function deleteAisleFromStore(index) {
+      const store = getActiveStore();
+      if (index === 0) return;
+      const removedAisle = store.aisles[index];
+      store.aisles.splice(index, 1);
+
+      // Reassign dictionary entries that used this aisle to Unassigned
+      Object.keys(store.dictionary).forEach(k => {
+        if (store.dictionary[k] === removedAisle) {
+          delete store.dictionary[k];
+        }
+      });
+
+      saveState();
+      renderStoresManagerTab();
+      showToast(`Removed "${removedAisle}"`);
+    }
+
+    // Learned Ingredient Dictionary Editor
+    function renderDictionaryEditor() {
+      const store = getActiveStore();
+      const query = (document.getElementById("dictSearchInput")?.value || "").toLowerCase().trim();
+      const container = document.getElementById("dictionaryRulesContainer");
+
+      const entries = Object.entries(store.dictionary)
+        .filter(([ing, aisle]) => !query || ing.includes(query) || aisle.toLowerCase().includes(query))
+        .sort((a, b) => a[0].localeCompare(b[0]));
+
+      if (entries.length === 0) {
+        container.innerHTML = `<div class="text-xs text-slate-500 py-4 text-center">No matching ingredient rules found.</div>`;
+        return;
+      }
+
+      container.innerHTML = entries.map(([ing, aisle]) => `
+        <div class="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2 text-xs">
+          <span class="font-bold text-white capitalize">${escapeHtml(ing)}</span>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded bg-slate-800 text-emerald-300 font-semibold">${escapeHtml(aisle)}</span>
+            <button onclick="deleteDictionaryRule('${escapeJsString(ing)}')" class="text-slate-500 hover:text-rose-400 p-1">
+              <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      `).join("");
+      lucide.createIcons();
+    }
+
+    function handleManualDictionaryAdd(event) {
+      event.preventDefault();
+      const ingInput = document.getElementById("dictNewIngredient");
+      const aisleSelect = document.getElementById("dictNewAisleSelect");
+      const clean = normalizeKey(ingInput.value);
+      const aisle = aisleSelect.value;
+      if (!clean || !aisle) return;
+
+      const store = getActiveStore();
+      store.dictionary[clean] = aisle;
+      ingInput.value = "";
+      saveState();
+      renderDictionaryEditor();
+      showToast(`Saved rule: "${clean}" → ${aisle}`);
+    }
+
+    function deleteDictionaryRule(ingKey) {
+      const store = getActiveStore();
+      delete store.dictionary[ingKey];
+      saveState();
+      renderDictionaryEditor();
+    }
+
+    // ==========================================
+    // SAVED RECIPES (INSTRUCTIONS VIEWER)
+    // ==========================================
+    function openRecipesDrawer() {
+      const container = document.getElementById("savedRecipesContainer");
+      if (appState.savedRecipes.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8 space-y-2">
+            <p class="text-sm font-bold text-slate-300">No Scanned Recipes Yet</p>
+            <p class="text-xs text-slate-500">When you scan a recipe and send its ingredients to your list, the cooking instructions are saved here automatically.</p>
+          </div>
+        `;
+      } else {
+        container.innerHTML = appState.savedRecipes.map(rec => `
+          <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <h4 class="text-sm font-extrabold text-white">${escapeHtml(rec.title)}</h4>
+                <span class="text-[11px] text-slate-400">${rec.servings ? `Servings: ${escapeHtml(rec.servings)} • ` : ""}Scanned ${escapeHtml(rec.scannedAt || "")}</span>
+              </div>
+              <button onclick="deleteSavedRecipe('${rec.id}')" class="text-slate-500 hover:text-rose-400 p-1">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            ${rec.ingredientsSummary && rec.ingredientsSummary.length ? `
+              <div class="flex flex-wrap gap-1">
+                ${rec.ingredientsSummary.map(i => `<span class="text-[11px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">${escapeHtml(i)}</span>`).join("")}
+              </div>
+            ` : ""}
+
+            <ol class="space-y-1.5 text-xs text-slate-300 list-decimal list-inside border-t border-slate-800 pt-2.5">
+              ${(rec.instructions || []).map(step => `<li class="leading-relaxed">${escapeHtml(step)}</li>`).join("")}
+            </ol>
+          </div>
+        `).join("");
+      }
+
+      document.getElementById("recipesDrawerModal").classList.remove("hidden");
+      lucide.createIcons();
+    }
+
+    function closeRecipesDrawer() {
+      document.getElementById("recipesDrawerModal").classList.add("hidden");
+    }
+
+    function deleteSavedRecipe(recId) {
+      appState.savedRecipes = appState.savedRecipes.filter(r => r.id !== recId);
+      saveState();
+      openRecipesDrawer();
+    }
+
+    // ==========================================
+    // API KEY MODAL & BACKUP/RESTORE
+    // ==========================================
+    function openApiKeyModal() {
+      document.getElementById("customApiKeyInput").value = appState.customApiKey || "";
+      document.getElementById("apiKeyModal").classList.remove("hidden");
+    }
+
+    function closeApiKeyModal() {
+      document.getElementById("apiKeyModal").classList.add("hidden");
+    }
+
+    function saveCustomApiKey() {
+      appState.customApiKey = document.getElementById("customApiKeyInput").value.trim();
+      saveState();
+      closeApiKeyModal();
+      showToast("API Key saved to phone storage");
+    }
+
+    function clearSavedApiKey() {
+      appState.customApiKey = "";
+      document.getElementById("customApiKeyInput").value = "";
+      saveState();
+      showToast("Cleared custom API key");
+    }
+
+    function exportAppData() {
+      const dataStr = JSON.stringify(appState, null, 2);
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `scan-to-aisle-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("Backup JSON downloaded!");
+    }
+
+    function importAppData(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (!imported.stores || !Array.isArray(imported.stores)) {
+            throw new Error("Invalid backup file");
+          }
+          appState = {
+            ...DEFAULT_STATE,
+            ...imported
+          };
+          saveState();
+          renderStoresManagerTab();
+          showToast("Backup restored successfully!");
+        } catch (err) {
+          showToast("Invalid backup JSON file", true);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // ==========================================
+    // UTILITIES
+    // ==========================================
+    let toastTimer = null;
+    function showToast(message, isError = false) {
+      const banner = document.getElementById("toastBanner");
+      const inner = document.getElementById("toastInner");
+      const msgEl = document.getElementById("toastMessage");
+
+      msgEl.textContent = message;
+      inner.className = isError
+        ? "bg-rose-600 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-xl border border-rose-400/40 flex items-center gap-2"
+        : "bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-xl border border-emerald-400/30 flex items-center gap-2";
+
+      banner.classList.remove("opacity-0");
+      banner.classList.add("opacity-100");
+
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        banner.classList.remove("opacity-100");
+        banner.classList.add("opacity-0");
+      }, 2800);
+    }
+
+    function capitalizeWords(str) {
+      return (str || "").replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function escapeJsString(str) {
+      return String(str ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    }
+
+    // Initialize App on Load
+    window.onload = function() {
+      updateBadgesAndHeader();
+      switchTab(appState.activeTab || "scan");
+      lucide.createIcons();
+    };
+  </script>
+</body>
+</html>
